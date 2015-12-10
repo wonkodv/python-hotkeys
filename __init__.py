@@ -42,7 +42,7 @@ def loop():
             try:
                 register_hotkey(id, mod, vk)
             except Exception as e:
-                env.Env.handle_exception(e)
+                env.Env.log_error(e)
             else:
                 env.Env.log("Register Hotkey: id=%d hk=%s mod=%r vk=%r" % (id, h, mod, vk))
 
@@ -54,21 +54,17 @@ def loop():
             time.sleep(0.05)
             continue
         if id < 0 or id >= len(hotkeys):
-            lib.handle_exception(ValueError("Invalid Hotkey ID"))
+            env.Env.log_error(ValueError("Invalid Hotkey ID"))
             continue
         c, h = hotkeys[id]
-        try:
-            r = c()
-            env.Env.log("Hotkey %s: %s => %r", h, c.name, r)
-        except Exception as e:
-            env.Env.handle_exception(e)
+        command.run_command_func(c)
     hotkey_iter.close()
 
     for i in range(len(hotkeys)):
         try:
             unregister_hotkey(i)
         except Exception as e:
-            env.Env.handle_exception(e)
+            env.Env.log_error(e)
 
 def stop():
     _message_loop_running.set()
