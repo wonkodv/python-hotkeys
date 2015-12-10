@@ -21,7 +21,7 @@ def translate_hotkey(s):
     vk = KEY_CODES[parts[-1]]
     mod = 0
     for m in parts[:-1]:
-        mod |= MODIFIERS[m]
+        mod |= MODIFIERS[m.upper()]
 
     return mod, vk
 
@@ -35,11 +35,10 @@ def loop():
     for c in command.COMMANDS.values():
         h = c.attrs.get('HotKey',None)
         if h:
-            mod, vk = translate_hotkey(h)
-            id = len(hotkeys)
-            hotkeys.append([c, h])
-
             try:
+                mod, vk = translate_hotkey(h)
+                id = len(hotkeys)
+                hotkeys.append([c, h])
                 register_hotkey(id, mod, vk)
             except Exception as e:
                 env.Env.log_error(e)
@@ -53,11 +52,12 @@ def loop():
         if id is None:
             time.sleep(0.05)
             continue
-        if id < 0 or id >= len(hotkeys):
-            env.Env.log_error(ValueError("Invalid Hotkey ID"))
-            continue
-        c, h = hotkeys[id]
-        command.run_command_func(c)
+        try:
+            c, h = hotkeys[id]
+        except Exception as e:
+            env.Env.log_error(e)
+        else:
+            command.run_command_func(c)
     hotkey_iter.close()
 
     for i in range(len(hotkeys)):
