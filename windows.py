@@ -1,4 +1,5 @@
-from ctypes import windll, byref
+"""Hotkeys on the Windows Plattform."""
+from ctypes import windll, byref, WinError
 from ctypes.wintypes import MSG
 
 MODIFIERS = {
@@ -10,13 +11,13 @@ MODIFIERS = {
     'WIN': 8
 }
 
-def register_hotkey(id, mod, vk):
-    if not windll.user32.RegisterHotKey(None, id, mod, vk):
-        raise ctypes.WindowsError()
+def register_hotkey(num, mod, vk):
+    if not windll.user32.RegisterHotKey(None, num, mod, vk):
+        raise WinError()
 
-def unregister_hotkey(id):
-    if not windll.user32.UnregisterHotKey(0, id):
-        raise ctypes.WindowsError()
+def unregister_hotkey(num):
+    if not windll.user32.UnregisterHotKey(0, num):
+        raise WinError();
 
 def hotkey_loop():
     msg = MSG()
