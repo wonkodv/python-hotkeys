@@ -33,9 +33,10 @@ def translate_hotkey(s):
 
 _message_loop_running = threading.Event()
 
-def loop():
+def start():
     _message_loop_running.clear()
 
+def loop():
     hotkeys = []
 
     for c in command.COMMANDS.values():
