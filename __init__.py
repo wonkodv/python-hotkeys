@@ -11,7 +11,7 @@ import time
 from ht3.check import CHECK
 from ht3.keycodes import KEY_CODES
 
-from ht3 import env
+from ht3.env import Env
 from ht3 import command
 
 if CHECK.os.win:
@@ -48,9 +48,9 @@ def loop():
                 hotkeys.append([c, h])
                 register_hotkey(num, mod, vk)
             except Exception as e:
-                env.Env.log_error(e)
+                Env.log_error(e)
             else:
-                env.Env.log("Register Hotkey: num=%d hk=%s mod=%r vk=%r" % (num, h, mod, vk))
+                Env.log("Register Hotkey: num=%d hk=%s mod=%r vk=%r" % (num, h, mod, vk))
 
     hotkey_iter = hotkey_loop()
 
@@ -62,7 +62,7 @@ def loop():
         try:
             c, h = hotkeys[num]
         except Exception as e:
-            env.Env.log_error(e)
+            Env.log_error(e)
         else:
             command.run_command_func(c)
     hotkey_iter.close()
@@ -71,7 +71,7 @@ def loop():
         try:
             unregister_hotkey(i)
         except Exception as e:
-            env.Env.log_error(e)
+            Env.log_error(e)
 
 def stop():
     _message_loop_running.set()
