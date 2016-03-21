@@ -12,7 +12,7 @@ MODIFIERS = {
 }
 
 def register_hotkey(num, mod, vk):
-    if not windll.user32.RegisterHotKey(None, num, mod, vk):
+    if not windll.user32.RegisterHotKey(0, num, mod, vk):
         raise WinError()
 
 def unregister_hotkey(num):
