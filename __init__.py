@@ -35,12 +35,8 @@ def reload_hotkeys():
     _q.put(_load_hotkeys)
 
 def disable_hotkey(hk):
-    smod, svk = translate_hotkey(hk)
-    for i, (_, _, vk, mod) in _hotkeys.items():
-        if vk == svk and mod == smod:
-            _q.put(lambda:_unregister_hotkey(i))
-            return
-    raise KeyError("No such hotkey registered", hk)
+    i = _find_hotkey_id(hk)
+    _q.put(lambda:_unregister_hotkey(i))
 
 def translate_hotkey(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
@@ -52,6 +48,18 @@ def translate_hotkey(s):
         mod |= MODIFIERS[m.upper()]
 
     return mod, vk
+
+def get_hotkey_command(hk):
+    i = _find_hotkey_id(hk)
+    c, _, _, _ = _hotkeys[i]
+    return c
+
+def _find_hotkey_id(hk):
+    smod, svk = translate_hotkey(hk)
+    for i, (_, _, vk, mod) in _hotkeys.items():
+        if vk == svk and mod == smod:
+            return i
+    raise KeyError("No such hotkey registered", hk)
 
 def _load_hotkeys():
     global _last_num
