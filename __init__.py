@@ -111,7 +111,7 @@ def _unregister_hotkeys():
             Env.log_error(e)
 
 def _unregister_hotkey(num):
-    unregister_hotkey(num)
+    impl.unregister_hotkey(num)
     del _hotkeys[num]
 
 def start():
