@@ -2,10 +2,13 @@
 from ctypes import windll, byref, WinError
 from ctypes.wintypes import MSG
 
+from ht3.keycodes import KEY_CODES
+
 MODIFIERS = {
     'ALT': 1,
     'MENU': 1,
     'CTRL': 2,
+    'CONTROL': 2,
     'SHIFT': 4,
     'MOD4': 8,
     'WIN': 8

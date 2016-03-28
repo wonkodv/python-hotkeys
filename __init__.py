@@ -10,13 +10,12 @@ import time
 import queue
 
 from ht3.check import CHECK
-from ht3.keycodes import KEY_CODES
 
 from ht3.env import Env
 from ht3 import command
 
 if CHECK.os.win:
-    from .windows import *
+    from . import windows as impl
 
 
 __all__ = ('disable_all_hotkeys','disable_hotkey','reload_hotkeys')
@@ -42,10 +41,10 @@ def translate_hotkey(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
     parts = s.split('+')
     parts = [s.strip() for s in parts]
-    vk = KEY_CODES[parts[-1]]
+    vk = impl.KEY_CODES[parts[-1]]
     mod = 0
     for m in parts[:-1]:
-        mod |= MODIFIERS[m.upper()]
+        mod |= impl.MODIFIERS[m.upper()]
 
     return mod, vk
 
@@ -71,7 +70,7 @@ def _load_hotkeys():
                 num = _last_num
                 _last_num += 1
                 _hotkeys[num]=(c, h, vk, mod)
-                register_hotkey(num, mod, vk)
+                impl.register_hotkey(num, mod, vk)
             except Exception as e:
                 Env.log_error(e)
             else:
@@ -79,7 +78,7 @@ def _load_hotkeys():
 
 
 def _message_loop():
-    hotkey_iter = hotkey_loop()
+    hotkey_iter = impl.hotkey_loop()
 
     while not _message_loop_running.is_set():
         num = next(hotkey_iter)
@@ -105,7 +104,7 @@ def _message_loop():
 def _unregister_hotkeys():
     for num, (_, h, _, _) in list(_hotkeys.items()):
         try:
-            unregister_hotkey(num)
+            impl.unregister_hotkey(num)
             del _hotkeys[num]
             Env.log("UnRegister Hotkey: num=%d hk=%s" % (num, h))
         except Exception as e:
