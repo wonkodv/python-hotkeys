@@ -72,7 +72,7 @@ def _load_hotkeys():
                 _hotkeys[num]=(c, h, vk, mod)
                 impl.register_hotkey(num, mod, vk)
             except Exception as e:
-                Env.log_error(e)
+                Env.error_hook(e)
             else:
                 Env.log("Register Hotkey: num=%d hk=%s mod=%r vk=%r" % (num, h, mod, vk))
 
@@ -87,7 +87,7 @@ def _message_loop():
                 c, _, _, _ = _hotkeys[num]
                 command.run_command_func(c)
             except Exception as e:
-                Env.log_error(e)
+                Env.error_hook(e)
             continue
         time.sleep(0.05)
         try:
@@ -98,7 +98,7 @@ def _message_loop():
             try:
                 c()
             except Exception as e:
-                Env.log_error(e)
+                Env.error_hook(e)
     hotkey_iter.close()
 
 def _unregister_hotkeys():
@@ -108,7 +108,7 @@ def _unregister_hotkeys():
             del _hotkeys[num]
             Env.log("UnRegister Hotkey: num=%d hk=%s" % (num, h))
         except Exception as e:
-            Env.log_error(e)
+            Env.error_hook(e)
 
 def _unregister_hotkey(num):
     impl.unregister_hotkey(num)
