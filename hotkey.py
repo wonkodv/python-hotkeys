@@ -41,7 +41,14 @@ def translate_hotkey(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
     parts = s.split('+')
     parts = [s.strip() for s in parts]
-    vk = impl.KEY_CODES[parts[-1]]
+    try:
+        vk = impl.KEY_CODES[parts[-1]]
+    except KeyError:
+        vk = parts[-1]
+        if vk.startswith('0x'):
+            vk = int(vk,0)
+        else:
+            raise
     mod = 0
     for m in parts[:-1]:
         mod |= impl.MODIFIERS[m.upper()]
