@@ -5,9 +5,11 @@ if a hotkey was pressed.
 The module scans all commands and registers a hotkey for those that have
 the `HotKey` attribute. The commands are called without argument.
 """
+
+import queue
 import threading
 import time
-import queue
+import weakref
 
 from ht3.check import CHECK
 
@@ -18,117 +20,129 @@ if CHECK.os.win:
     from . import windows as impl
 
 
-__all__ = ('disable_all_hotkeys','disable_hotkey','reload_hotkeys')
+__all__ = (
+    'HotKey',
+    'HotKeyError',
+    'disable_all_hotkeys',
+    'enable_all_hotkeys',
+    'get_hotkey',
+    'reload_hotkeys',
+)
 
 _message_loop_running = threading.Event()
-_hotkeys = {}
-_last_num = 0
+_Lock = threading.Lock()
 
-_q = queue.Queue()
+class HotKeyError(Exception):
+    pass
+
+class HotKey:
+    HOTKEYS = weakref.WeakValueDictionary()
+    def __init__(self, hotkey, callback, *args, **kwargs):
+        self.hotkey = hotkey
+        self.code = code = impl.translate(hotkey)
+        self._callback = callback
+        self._args = args
+        self._kwargs = kwargs
+        self.active = False
+        with _Lock:
+            if code in HotKey.HOTKEYS:
+                raise HotKeyError("Duplicate Hotkey", hotkey)
+            HotKey.HOTKEYS[code] = self
+
+    def register(self):
+        with _Lock:
+            if not self.active:
+                self.active = True
+                Env.log("{0} registered".format(self))
+                impl.register(self)
+            else:
+                raise HotKeyError("Already active")
+
+
+    def unregister(self):
+        with _Lock:
+            if self.active:
+                self.active = False
+                impl.unregister(self)
+                Env.log("{0} unregistered".format(self))
+            else:
+                raise HotKeyError("Already active")
+
+    def do_callback(self):
+        Env.log("{0} called".format(self))
+        try:
+            self._callback(*self._args, **self._kwargs)
+        except Exception as e:
+            Env.log_error(e)
+
+    def __del__(self):
+        with _Lock:
+            assert not self.active, "Impl should hang on to obj while active"
+            Env.log("{0} deleted".format(self))
+
+    def __repr__(self):
+        return "HotKey({0}, active={1}, callback={2})".format(
+                self.hotkey, self.active, self._callback)
 
 def disable_all_hotkeys():
-    _q.put(_unregister_hotkeys)
+    for hk in list(HotKey.HOTKEYS.values()): # size changes during iteration, list fixes the problem
+        try:
+            hk.unregister()
+        except HotKeyError:
+            pass
+
+def enable_all_hotkeys():
+    for hk in list(HotKey.HOTKEYS.values()):
+        try:
+            hk.register()
+        except HotKeyError:
+            pass
+
+def get_hotkey(hk):
+    code = impl.translate(hk)
+    hk = HotKey.HOTKEYS[code]
+    return hk
 
 def reload_hotkeys():
-    _q.put(_unregister_hotkeys)
-    _q.put(_load_hotkeys)
+    """For all commands that have a HotKey attribute, register a hotkey.
 
-def disable_hotkey(hk):
-    i = _find_hotkey_id(hk)
-    _q.put(lambda:_unregister_hotkey(i))
+    If the command already had a hotkey, register it, otherwise create a new hotkey and
+    attach it to the command.
+    """
 
-def translate_hotkey(s):
-    """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
-    parts = s.split('+')
-    parts = [s.strip() for s in parts]
-    try:
-        vk = impl.KEY_CODES[parts[-1]]
-    except KeyError:
-        vk = parts[-1]
-        if vk.startswith('0x'):
-            vk = int(vk,0)
-        else:
-            raise
-    mod = 0
-    for m in parts[:-1]:
-        mod |= impl.MODIFIERS[m.upper()]
-
-    return mod, vk
-
-def get_hotkey_command(hk):
-    i = _find_hotkey_id(hk)
-    c, _, _, _ = _hotkeys[i]
-    return c
-
-def _find_hotkey_id(hk):
-    smod, svk = translate_hotkey(hk)
-    for i, (_, _, vk, mod) in _hotkeys.items():
-        if vk == svk and mod == smod:
-            return i
-    raise KeyError("No such hotkey registered", hk)
-
-def _load_hotkeys():
-    global _last_num
     for c in command.COMMANDS.values():
-        h = c.attrs.get('HotKey',None)
-        if h:
-            try:
-                mod, vk = translate_hotkey(h)
-                num = _last_num
-                _last_num += 1
-                _hotkeys[num]=(c, h, vk, mod)
-                impl.register_hotkey(num, mod, vk)
-            except Exception as e:
-                Env.error_hook(e)
-            else:
-                Env.log("Register Hotkey: num=%d hk=%s mod=%r vk=%r" % (num, h, mod, vk))
-
-
-def _message_loop():
-    hotkey_iter = impl.hotkey_loop()
-
-    while not _message_loop_running.is_set():
-        num = next(hotkey_iter)
-        if num is not None:
-            try:
-                c, _, _, _ = _hotkeys[num]
-                command.run_command_func(c)
-            except Exception as e:
-                Env.error_hook(e)
-            continue
-        time.sleep(0.05)
         try:
-            c = _q.get_nowait()
-        except queue.Empty:
-            pass
-        else:
             try:
-                c()
-            except Exception as e:
-                Env.error_hook(e)
-    hotkey_iter.close()
+                hk = c.attrs['HotKey']
+            except KeyError:
+                continue
 
-def _unregister_hotkeys():
-    for num, (_, h, _, _) in list(_hotkeys.items()):
-        try:
-            impl.unregister_hotkey(num)
-            del _hotkeys[num]
-            Env.log("UnRegister Hotkey: num=%d hk=%s" % (num, h))
+            hko = None
+            try:
+                hko = c._HotKey
+                assert not hko.acive
+                assert hko.hotkey == hk
+            except AttributeError:
+                pass
+
+            if not hko:
+                hko = HotKey(hk, command.run_command_func, c)
+                c.attrs['_HotKey'] = hko
+
+            hko.register()
         except Exception as e:
             Env.error_hook(e)
 
-def _unregister_hotkey(num):
-    impl.unregister_hotkey(num)
-    del _hotkeys[num]
 
 def start():
     _message_loop_running.clear()
 
 def loop():
-    _load_hotkeys()
-    _message_loop()
-    _unregister_hotkeys()
+    impl.prepare()
+    reload_hotkeys()
+    impl.loop(_message_loop_running)
+    disable_all_hotkeys()
+    impl.stop()
 
 def stop():
     _message_loop_running.set()
-
