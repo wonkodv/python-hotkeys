@@ -15,6 +15,7 @@ from ht3.check import CHECK
 
 from ht3.env import Env
 from ht3 import command
+from ht3 import lib
 
 if CHECK.os.win:
     from . import windows as impl
@@ -53,7 +54,7 @@ class HotKey:
         with _Lock:
             if not self.active:
                 self.active = True
-                Env.log("{0} registered".format(self))
+                lib.DEBUG_HOOK("{0} registered".format(self))
                 impl.register(self)
             else:
                 raise HotKeyError("Already active")
@@ -64,21 +65,19 @@ class HotKey:
             if self.active:
                 self.active = False
                 impl.unregister(self)
-                Env.log("{0} unregistered".format(self))
+                lib.DEBUG_HOOK("{0} unregistered".format(self))
             else:
                 raise HotKeyError("Already active")
 
     def do_callback(self):
-        Env.log("{0} called".format(self))
         try:
             self._callback(*self._args, **self._kwargs)
         except Exception as e:
-            Env.log_error(e)
+            lib.EXCEPTION_HOOK(e)
 
     def __del__(self):
         with _Lock:
             assert not self.active, "Impl should hang on to obj while active"
-            Env.log("{0} deleted".format(self))
 
     def __repr__(self):
         return "HotKey({0}, active={1}, callback={2})".format(
@@ -126,12 +125,12 @@ def reload_hotkeys():
                 pass
 
             if not hko:
-                hko = HotKey(hk, command.run_command_func, c)
+                hko = HotKey(hk, command.run_command_func, hk, c)
                 c.attrs['_HotKey'] = hko
 
             hko.register()
         except Exception as e:
-            Env.error_hook(e)
+            lib.EXCEPTION_HOOK(e)
 
 
 def start():
