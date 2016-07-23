@@ -53,9 +53,9 @@ class HotKey:
     def register(self):
         with _Lock:
             if not self.active:
-                self.active = True
-                lib.DEBUG_HOOK("{0} registered".format(self))
                 impl.register(self)
+                lib.DEBUG_HOOK("{0} registered".format(self))
+                self.active = True
             else:
                 raise HotKeyError("Already active")
 
@@ -63,9 +63,9 @@ class HotKey:
     def unregister(self):
         with _Lock:
             if self.active:
+                lib.DEBUG_HOOK("{0} unregistered".format(self))
                 self.active = False
                 impl.unregister(self)
-                lib.DEBUG_HOOK("{0} unregistered".format(self))
             else:
                 raise HotKeyError("Already active")
 
