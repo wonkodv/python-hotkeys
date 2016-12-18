@@ -54,7 +54,7 @@ class HotKey:
         with _Lock:
             if not self.active:
                 impl.register(self)
-                lib.DEBUG_HOOK("{0} registered".format(self))
+                lib.DEBUG_HOOK(message="{0} registered".format(self))
                 self.active = True
             else:
                 raise HotKeyError("Already active")
@@ -63,7 +63,7 @@ class HotKey:
     def unregister(self):
         with _Lock:
             if self.active:
-                lib.DEBUG_HOOK("{0} unregistered".format(self))
+                lib.DEBUG_HOOK(message="{0} unregistered".format(self))
                 self.active = False
                 impl.unregister(self)
             else:
@@ -73,7 +73,7 @@ class HotKey:
         try:
             self._callback(*self._args, **self._kwargs)
         except Exception as e:
-            lib.EXCEPTION_HOOK(e)
+            lib.EXCEPTION_HOOK(exception=e)
 
     def __del__(self):
         with _Lock:
@@ -130,7 +130,7 @@ def reload_hotkeys():
 
             hko.register()
         except Exception as e:
-            lib.EXCEPTION_HOOK(e)
+            lib.EXCEPTION_HOOK(exception=e)
 
 
 def start():
