@@ -81,7 +81,8 @@ class HotKey:
 
     def __repr__(self):
         return "HotKey({0}, active={1}, callback={2})".format(
-                self.hotkey, self.active, self._callback)
+                self.hotkey, self.active,
+                self._callback.__qualname__)
 
 def disable_all_hotkeys():
     for hk in list(HotKey.HOTKEYS.values()): # size changes during iteration, list fixes the problem
@@ -125,7 +126,10 @@ def reload_hotkeys():
                 pass
 
             if not hko:
-                hko = HotKey(hk, command.run_command_func, hk, c)
+                def run_command(c,hk):
+                    c(hk,"")()
+                run_command.__qualname__ = c.__qualname__
+                hko = HotKey(hk, run_command, c, hk)
                 c.attrs['_HotKey'] = hko
 
             hko.register()
