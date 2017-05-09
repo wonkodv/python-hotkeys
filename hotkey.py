@@ -30,7 +30,6 @@ __all__ = (
     'reload_hotkeys',
 )
 
-_message_loop_running = threading.Event()
 _Lock = threading.Lock()
 
 class HotKeyError(Exception):
@@ -138,14 +137,13 @@ def reload_hotkeys():
 
 
 def start():
-    _message_loop_running.clear()
+    impl.start()
 
 def loop():
     impl.prepare()
     reload_hotkeys()
-    impl.loop(_message_loop_running)
+    impl.loop()
     disable_all_hotkeys()
-    impl.stop()
 
 def stop():
-    _message_loop_running.set()
+    impl.stop()

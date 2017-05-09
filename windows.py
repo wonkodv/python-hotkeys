@@ -12,6 +12,9 @@ from ht3.keycodes import KEY_CODES
 
 
 WM_HOTKEY = 0x312
+WM_USER = 0x0400
+WM_STOP = WM_USER + 1
+WM_NOTIFY = WM_USER + 2
 
 MODIFIERS = {
     'ALT': 1,
@@ -26,6 +29,7 @@ MODIFIERS = {
 HOTKEYS_BY_ID = {}
 
 HK_WORKER_THREAD = None
+HK_WORKER_THREAD_ID = None
 
 HK_OP_Q = queue.Queue()
 
@@ -39,6 +43,8 @@ def do_in_hk_thread(f):
         else:
             e = threading.Event()
             HK_OP_Q.put((e,f,args,kwargs))
+            if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_NOTIFY, 0, 0):
+                raise WinError()
             e.wait()
             if e._exception:
                 raise e._exception
@@ -67,38 +73,49 @@ def unregister(hk):
     del HOTKEYS_BY_ID[hk._win_hk_id]
     del hk._win_hk_id
 
-
-def loop(stop_evt):
-    msg = MSG()
-    lpmsg = byref(msg)
-
-    while not stop_evt.is_set():
-        time.sleep(0.05)
-
-        while 1:
-            try:
-                e, f, args, kwargs = HK_OP_Q.get_nowait()
-            except queue.Empty:
-                break
-            try:
-                e._result = f(*args, **kwargs)
-                e._exception = None
-            except Exception as e:
-                e._exception = e
-            e.set()
-
-        while windll.user32.PeekMessageW(lpmsg, 0, 0, 0, 1):
-            if msg.message != WM_HOTKEY:
-                raise OSError("Unknown Message", msg)
-            HOTKEYS_BY_ID[msg.wParam].do_callback()
-
 def prepare():
-    global HK_WORKER_THREAD
+    global HK_WORKER_THREAD, HK_WORKER_THREAD_ID
     HK_WORKER_THREAD = threading.current_thread()
+    HK_WORKER_THREAD_ID = windll.kernel32.GetCurrentThreadId()
+
+
+def loop():
+    try:
+        msg = MSG()
+        lpmsg = byref(msg)
+
+        while windll.user32.GetMessageW(lpmsg, 0, 0, 0):
+            if msg.message == WM_HOTKEY:
+                HOTKEYS_BY_ID[msg.wParam].do_callback()
+            elif  msg.message == WM_STOP:
+                return
+            elif msg.message == WM_NOTIFY:
+                try:
+                    e, f, args, kwargs = HK_OP_Q.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    e._result = f(*args, **kwargs)
+                    e._exception = None
+                except Exception as e:
+                    e._exception = e
+                e.set()
+            else:
+                raise AssertionError(msg)
+
+
+    finally:
+        HK_WORKER_THREAD = None
+        HK_WORKER_THREAD_ID = None
+
+def start():
+    pass
 
 def stop():
-    global HK_WORKER_THREAD
-    HK_WORKER_THREAD = None
+    assert HK_WORKER_THREAD
+    if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_STOP, 0, 0):
+        raise WinError()
+    pass
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
