@@ -45,9 +45,9 @@ class HotKey:
         self._kwargs = kwargs
         self.active = False
         with _Lock:
-            if code in HotKey.HOTKEYS:
+            if code in self.HOTKEYS:
                 raise HotKeyError("Duplicate Hotkey", hotkey)
-            HotKey.HOTKEYS[code] = self
+            self.HOTKEYS[code] = self
 
     def register(self):
         with _Lock:
@@ -58,15 +58,25 @@ class HotKey:
             else:
                 raise HotKeyError("Already active")
 
-
     def unregister(self):
         with _Lock:
             if self.active:
                 lib.DEBUG_HOOK(message="{0} unregistered".format(self))
-                self.active = False
                 impl.unregister(self)
+                self.active = False
             else:
-                raise HotKeyError("Already active")
+                raise HotKeyError("Already deactivated")
+
+    def free(self):
+        try:
+            self.unregister()
+        except HotKeyError:
+            pass
+        with _Lock:
+            try:
+                del self.HOTKEYS[self.code]
+            except KeyError:
+                pass
 
     def do_callback(self):
         try:

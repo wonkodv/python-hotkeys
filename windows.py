@@ -26,6 +26,7 @@ MODIFIERS = {
     'WIN': 8
 }
 
+_next_id = 0
 HOTKEYS_BY_ID = {}
 
 HK_WORKER_THREAD = None
@@ -53,17 +54,16 @@ def do_in_hk_thread(f):
 
 @do_in_hk_thread
 def register(hk):
-    code = hk.code
-    vk = hk.code & 0xFF
-    mod = hk.code >> 8
+    global _next_id
 
-    id = len(HOTKEYS_BY_ID) + 42
-    while id in HOTKEYS_BY_ID:
-        id += 1
-    hk._win_hk_id = id
+    _next_id = _next_id + 1
+    hk._win_hk_id = _next_id
+
+    mod, vk = hk.code
 
     if not windll.user32.RegisterHotKey(0, hk._win_hk_id, mod, vk):
         raise WinError()
+
     HOTKEYS_BY_ID[hk._win_hk_id] = hk
 
 @do_in_hk_thread
@@ -71,13 +71,11 @@ def unregister(hk):
     if not windll.user32.UnregisterHotKey(0, hk._win_hk_id):
         raise WinError();
     del HOTKEYS_BY_ID[hk._win_hk_id]
-    del hk._win_hk_id
 
 def prepare():
     global HK_WORKER_THREAD, HK_WORKER_THREAD_ID
     HK_WORKER_THREAD = threading.current_thread()
     HK_WORKER_THREAD_ID = windll.kernel32.GetCurrentThreadId()
-
 
 def loop():
     try:
@@ -103,7 +101,6 @@ def loop():
             else:
                 raise AssertionError(msg)
 
-
     finally:
         HK_WORKER_THREAD = None
         HK_WORKER_THREAD_ID = None
@@ -115,7 +112,6 @@ def stop():
     assert HK_WORKER_THREAD
     if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_STOP, 0, 0):
         raise WinError()
-    pass
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
@@ -133,5 +129,5 @@ def translate(s):
     for m in parts[:-1]:
         mod |= MODIFIERS[m.upper()]
 
-    return mod <<8 | vk
+    return (mod,vk)
 
