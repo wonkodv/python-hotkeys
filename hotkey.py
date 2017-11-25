@@ -23,6 +23,7 @@ if CHECK.os.win:
 
 __all__ = (
     'HotKey',
+    'EventHotKey',
     'HotKeyError',
     'disable_all_hotkeys',
     'enable_all_hotkeys',
@@ -36,8 +37,26 @@ class HotKeyError(Exception):
     pass
 
 class HotKey:
+    """System wide HotKey.
+
+    Before use, the hotkey must be registered.
+    It can be unregistered, and then re-registered.
+
+    You need to delete the hotkey (or call its `free` method) before a new
+    hotkey with the same key combination can be created. (GC will do that
+    at some point, do it yourself to be sure).
+
+    Use inside a with block to takes care of calling register and free (can
+    only be used once)
+    """
     HOTKEYS = weakref.WeakValueDictionary()
     def __init__(self, hotkey, callback, *args, **kwargs):
+        """Create a hotkey, that will call a callback.
+
+        Calls `callback` with `*args` and `**kwargs` when the hotkey is
+        triggered (while it is registered).
+        """
+
         self.hotkey = hotkey
         self.code = code = impl.translate(hotkey)
         self._callback = callback
@@ -48,6 +67,12 @@ class HotKey:
             if code in self.HOTKEYS:
                 raise HotKeyError("Duplicate Hotkey", hotkey)
             self.HOTKEYS[code] = self
+
+    def _do_callback(self):
+        try:
+            self._callback(*self._args, **self._kwargs)
+        except Exception as e:
+            lib.EXCEPTION_HOOK(exception=e)
 
     def register(self):
         with _Lock:
@@ -78,15 +103,63 @@ class HotKey:
             except KeyError:
                 pass
 
-    def do_callback(self):
-        try:
-            self._callback(*self._args, **self._kwargs)
-        except Exception as e:
-            lib.EXCEPTION_HOOK(exception=e)
+    def __enter__(self):
+        self.register()
+        return self
+
+    def __exit__(self, *args):
+        self.free()
 
     def __del__(self):
         with _Lock:
             assert not self.active, "Impl should hang on to obj while active"
+
+    def __repr__(self):
+        return "HotKey({0}, active={1}, callback={2})".format(
+                self.hotkey, self.active,
+                self._callback.__qualname__)
+
+class EventHotKey(HotKey):
+    """ A hotkey that acts as a threading Event.
+
+    Wait until Hotkey is pressed, Clear and wait again.
+
+    Can be iterated, in which case it yields the time since the last Hotkey was
+    triggered last (multiple events are not queued).
+
+    Example that prints the interval of keypress, until the key is pressed twice quickly:
+
+        with EventHotKey("Ctrl+H") as hk:
+            for t in hk:
+                if t < 0.25:
+                    break
+                print(t)
+    """
+
+    def __init__(self, hotkey):
+        self.evt = threading.Event()
+        super().__init__(hotkey, self.evt.set)
+
+    def wait(self):
+        if not self.active:
+            raise HotKeyError("Not active")
+        self.evt.wait()
+
+    def clear(self):
+        self.evt.clear()
+
+    def cwait(self):
+        self.clear()
+        self.wait()
+
+    def __iter__(self):
+        t2 = time.monotonic()
+        while True:
+            self.wait()
+            t = time.monotonic()
+            yield t - t2
+            t2 = t
+            self.clear()
 
     def __repr__(self):
         return "HotKey({0}, active={1}, callback={2})".format(

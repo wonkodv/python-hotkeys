@@ -84,7 +84,7 @@ def loop():
 
         while windll.user32.GetMessageW(lpmsg, 0, 0, 0):
             if msg.message == WM_HOTKEY:
-                HOTKEYS_BY_ID[msg.wParam].do_callback()
+                HOTKEYS_BY_ID[msg.wParam]._do_callback()
             elif  msg.message == WM_STOP:
                 return
             elif msg.message == WM_NOTIFY:
