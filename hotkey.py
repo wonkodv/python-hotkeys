@@ -219,6 +219,11 @@ def reload_hotkeys():
             lib.EXCEPTION_HOOK(exception=e)
 
 
+@command.COMMAND_EXCEPTION_HOOK.register
+def _command_exception(exception, command):
+    if command.frontend == 'ht3.hotkey':
+        return True # Don't raise the exception
+
 def start():
     impl.start()
 
