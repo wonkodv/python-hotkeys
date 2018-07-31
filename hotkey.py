@@ -139,32 +139,34 @@ class EventHotKey(HotKey):
     def __init__(self, hotkey):
         self.evt = threading.Event()
         super().__init__(hotkey, self.evt.set)
+        self.time = time.monotonic()
 
     def wait(self):
         if not self.active:
             raise HotKeyError("Not active")
         self.evt.wait()
+        t2 = time.monotonic()
+        t = t2 - self.time
+        self.time = t2
+        return t
 
     def clear(self):
         self.evt.clear()
 
-    def cwait(self):
+    def clear_and_wait(self):
         self.clear()
-        self.wait()
+        return self.wait()
 
     def __iter__(self):
-        t2 = time.monotonic()
         while True:
-            self.wait()
-            t = time.monotonic()
-            yield t - t2
-            t2 = t
-            self.clear()
+            yield self.clear_and_wait()
 
     def __repr__(self):
-        return "HotKey({0}, active={1}, callback={2})".format(
-                self.hotkey, self.active,
-                self._callback.__qualname__)
+        return "EventHotKey({}, {})".format(
+                self.hotkey, "Set" if self.evt.is_set() else "NotSet")
+
+    def __del__(self):
+        self.evt.set() # Should not be needed, but otherwise deadlocks show up :-/
 
 def disable_all_hotkeys():
     for hk in list(HotKey.HOTKEYS.values()): # size changes during iteration, list fixes the problem

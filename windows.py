@@ -5,8 +5,8 @@ import time
 import threading
 
 
-from ctypes import windll, byref, WinError
-from ctypes.wintypes import MSG
+from ctypes import windll, byref, WinError, py_object, addressof
+from ctypes.wintypes import MSG, LPARAM
 
 from ht3.keycodes import KEY_CODES
 
@@ -32,21 +32,26 @@ HOTKEYS_BY_ID = {}
 HK_WORKER_THREAD = None
 HK_WORKER_THREAD_ID = None
 
-HK_OP_Q = queue.Queue()
-
 def do_in_hk_thread(f):
     def wrapper(*args, **kwargs):
         if HK_WORKER_THREAD is None:
             raise Exception("No Hotkey Worker Thread", threading.current_thread())
 
-        if threading.current_thread() == HK_WORKER_THREAD:
+        t = threading.current_thread()
+        if t == HK_WORKER_THREAD:
             return f(*args, **kwargs)
         else:
             e = threading.Event()
-            HK_OP_Q.put((e,f,args,kwargs))
-            if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_NOTIFY, 0, 0):
+            data = (e,f,args,kwargs)
+            po = py_object(data)
+            lp = LPARAM(addressof(po))
+            # hold on to lp in local variable so data stays valid
+            if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_NOTIFY, 0, lp):
                 raise WinError()
-            e.wait()
+
+            if not e.wait(timeout=5):
+                raise TypeError("Hotkey Worker not Responding", e)
+
             if e._exception:
                 raise e._exception
             return e._result
@@ -82,21 +87,22 @@ def loop():
         msg = MSG()
         lpmsg = byref(msg)
 
+        t = threading.current_thread()
         while windll.user32.GetMessageW(lpmsg, 0, 0, 0):
             if msg.message == WM_HOTKEY:
-                HOTKEYS_BY_ID[msg.wParam]._do_callback()
+                hk = HOTKEYS_BY_ID[msg.wParam]
+                hk._do_callback()
             elif  msg.message == WM_STOP:
                 return
             elif msg.message == WM_NOTIFY:
-                try:
-                    e, f, args, kwargs = HK_OP_Q.get_nowait()
-                except queue.Empty:
-                    break
+                po = py_object.from_address(msg.lParam)
+                data = po.value
+                e, f, args, kwargs = data
                 try:
                     e._result = f(*args, **kwargs)
                     e._exception = None
-                except Exception as e:
-                    e._exception = e
+                except Exception as ex:
+                    e._exception = ex
                 e.set()
             else:
                 raise AssertionError(msg)
