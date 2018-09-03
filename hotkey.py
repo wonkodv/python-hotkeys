@@ -19,6 +19,10 @@ from ht3 import lib
 
 if CHECK.os.win:
     from . import windows as impl
+elif CHECK.os.posix:
+    from . import posix as impl
+else:
+    raise ImportError("No Hotkey Provider for your Plattform")
 
 
 __all__ = (
@@ -237,3 +241,5 @@ def loop():
 
 def stop():
     impl.stop()
+
+
