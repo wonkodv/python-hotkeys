@@ -8,7 +8,7 @@ import threading
 from ctypes import windll, byref, WinError, py_object, addressof
 from ctypes.wintypes import MSG, LPARAM
 
-from ht3.keycodes import KEY_CODES
+from ht3.utils.keycodes.win32 import KEY_CODES
 
 
 WM_HOTKEY = 0x312

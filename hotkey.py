@@ -20,7 +20,9 @@ from ht3 import lib
 if CHECK.os.win:
     from . import windows as impl
 elif CHECK.os.posix:
-    from . import posix as impl
+    from . import xserver as impl
+    if 0:
+        from . import posix as impl
 else:
     raise ImportError("No Hotkey Provider for your Plattform")
 

@@ -12,7 +12,7 @@ import threading
 import time
 
 from ht3.env import Env
-from ht3.keycodes import KEY_CODES, KEY_NAMES
+from ht3.utils.keycodes.posix import KEY_CODES, KEY_NAMES
 
 NAMED_MODIFIERS = {
     'ALT': 1,
