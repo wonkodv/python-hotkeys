@@ -1,4 +1,8 @@
-"""Hotkeys on the Windows Plattform."""
+"""Hotkeys on Posix Plattforms.
+
+Listens to /dev/input/event* and observes Keyboard input
+
+"""
 
 import collections
 import pathlib
@@ -48,20 +52,14 @@ FORMAT = 'llHHI'
 EVENT_SIZE = struct.calcsize(FORMAT)
 
 
-DEVICES = Env.get('HOTKEY_DEVICES', None)
-if DEVICES is None:
-    DEVICES = [p for p in pathlib.Path("/dev/input").glob("event*")]
+DEVICES = None # initially set by update_hotkey_devices()
 
 HOTKEYS_BY_CODE = {}
 
 def register(hk):
-    if hk.code in HOTKEYS_BY_CODE:
-        raise ValueError("Duplicate Hotkey",hk,HOTKEYS_BY_CODE[hk.code])
     HOTKEYS_BY_CODE[hk.code] = hk
 
 def unregister(hk):
-    if HOTKEYS_BY_CODE.get(hk.code) is not hk:
-        raise ValueError("Hotkey was not registered",hk,HOTKEYS_BY_CODE.get(hk.code))
     del HOTKEYS_BY_CODE[hk.code]
 
 def prepare():
@@ -69,12 +67,16 @@ def prepare():
 
 def loop():
     mod = 0
+    update_hotkey_devices()
+    cached_devices = None
     try:
-        files = [p.open("rb") for p in DEVICES]
-    except PermissionError:
-        raise PermissionError("You need to be member of the `input` group")
-    try:
-        while not evt.is_set():
+        while not _LoopEvt.is_set():
+            if cached_devices is not DEVICES:
+                try:
+                    files = [p.open("rb") for p in DEVICES]
+                    cached_devices = DEVICES
+                except PermissionError:
+                    raise PermissionError("You need to be allowed to read /def/input/event*. Usually by being member of the `input` group")
             r,_,_ = select.select(files, [], [], 0.1)
             for f in r:
                 sec, usec, typ, code, value = struct.unpack(FORMAT, f.read(EVENT_SIZE))
@@ -96,11 +98,12 @@ def loop():
             f.close()
 
 def start():
-    global evt
-    evt = threading.Event()
+    global _LoopEvt
+    _LoopEvt = threading.Event()
 
 def stop():
-    evt.set()
+
+    _LoopEvt.set()
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
@@ -119,3 +122,10 @@ def translate(s):
         mod |= NAMED_MODIFIERS[m.upper()]
 
     return (mod,vk)
+
+def update_hotkey_devices():
+    global DEVICES
+    d = Env.get('HOTKEY_DEVICES', None)
+    if d is None:
+        d = [p for p in pathlib.Path("/dev/input").glob("event*")]
+    DEVICES = d
