@@ -220,7 +220,7 @@ def reload_hotkeys():
                     c(hk,"")()
                 run_command.__qualname__ = c.__qualname__
                 hko = HotKey(hk, run_command, c, hk)
-                c.attrs['_HotKey'] = hko
+                c.attrs['_HotKey'] = weakref.ref(hko)
 
             hko.register()
         except Exception as e:
