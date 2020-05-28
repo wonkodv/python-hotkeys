@@ -32,21 +32,25 @@ HOTKEYS_BY_ID = {}
 HK_WORKER_THREAD = None
 HK_WORKER_THREAD_ID = None
 
+
 def do_in_hk_thread(f):
     def wrapper(*args, **kwargs):
         if HK_WORKER_THREAD is None:
-            raise Exception("No Hotkey Worker Thread", threading.current_thread())
+            raise Exception(
+                "No Hotkey Worker Thread",
+                threading.current_thread())
 
         t = threading.current_thread()
         if t == HK_WORKER_THREAD:
             return f(*args, **kwargs)
         else:
             e = threading.Event()
-            data = (e,f,args,kwargs)
+            data = (e, f, args, kwargs)
             po = py_object(data)
             lp = LPARAM(addressof(po))
             # hold on to lp in local variable so data stays valid
-            if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_NOTIFY, 0, lp):
+            if not windll.user32.PostThreadMessageW(
+                    HK_WORKER_THREAD_ID, WM_NOTIFY, 0, lp):
                 raise WinError()
 
             if not e.wait(timeout=5):
@@ -56,6 +60,7 @@ def do_in_hk_thread(f):
                 raise e._exception
             return e._result
     return wrapper
+
 
 @do_in_hk_thread
 def register(hk):
@@ -71,16 +76,19 @@ def register(hk):
 
     HOTKEYS_BY_ID[hk._win_hk_id] = hk
 
+
 @do_in_hk_thread
 def unregister(hk):
     if not windll.user32.UnregisterHotKey(0, hk._win_hk_id):
-        raise WinError();
+        raise WinError()
     del HOTKEYS_BY_ID[hk._win_hk_id]
+
 
 def prepare():
     global HK_WORKER_THREAD, HK_WORKER_THREAD_ID
     HK_WORKER_THREAD = threading.current_thread()
     HK_WORKER_THREAD_ID = windll.kernel32.GetCurrentThreadId()
+
 
 def loop():
     try:
@@ -92,7 +100,7 @@ def loop():
             if msg.message == WM_HOTKEY:
                 hk = HOTKEYS_BY_ID[msg.wParam]
                 hk._do_callback()
-            elif  msg.message == WM_STOP:
+            elif msg.message == WM_STOP:
                 return
             elif msg.message == WM_NOTIFY:
                 po = py_object.from_address(msg.lParam)
@@ -111,13 +119,17 @@ def loop():
         HK_WORKER_THREAD = None
         HK_WORKER_THREAD_ID = None
 
+
 def start():
     pass
 
+
 def stop():
     assert HK_WORKER_THREAD
-    if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_STOP, 0, 0):
+    if not windll.user32.PostThreadMessageW(
+            HK_WORKER_THREAD_ID, WM_STOP, 0, 0):
         raise WinError()
+
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
@@ -128,12 +140,11 @@ def translate(s):
     except KeyError:
         vk = parts[-1]
         if vk.startswith('0x'):
-            vk = int(vk,0)
+            vk = int(vk, 0)
         else:
             raise
     mod = 0
     for m in parts[:-1]:
         mod |= MODIFIERS[m.upper()]
 
-    return (mod,vk)
-
+    return (mod, vk)

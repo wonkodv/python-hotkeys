@@ -19,44 +19,54 @@ MODIFIERS = {
 }
 
 IGNORED_MODIFIERS = (
-    # Numlock       ScrolLock       ?         
-    X.Mod2Mask |    X.Mod3Mask |    X.Mod5Mask,
-    X.Mod2Mask |    X.Mod3Mask |    0         ,
-    X.Mod2Mask |    0          |    X.Mod5Mask,
-    X.Mod2Mask |    0          |    0         ,
-    0          |    X.Mod3Mask |    X.Mod5Mask,
-    0          |    X.Mod3Mask |    0         ,
-    0          |    0          |    X.Mod5Mask,
+    # Numlock       ScrolLock       ?
+    X.Mod2Mask | X.Mod3Mask | X.Mod5Mask,
+    X.Mod2Mask | X.Mod3Mask | 0,
+    X.Mod2Mask | 0 | X.Mod5Mask,
+    X.Mod2Mask | 0 | 0,
+    0 | X.Mod3Mask | X.Mod5Mask,
+    0 | X.Mod3Mask | 0,
+    0 | 0 | X.Mod5Mask,
 )
 
 HOTKEYS_BY_CODE = {}
+
 
 def register(hk):
     keycode, mod = hk.code
     catch = CatchError()
     for m in IGNORED_MODIFIERS:
-        root.grab_key(keycode, mod|m, False,X.GrabModeSync, X.GrabModeAsync, onerror=catch)
+        root.grab_key(
+            keycode,
+            mod | m,
+            False,
+            X.GrabModeSync,
+            X.GrabModeAsync,
+            onerror=catch)
         if catch.get_error():
             raise catch.get_error()
     HOTKEYS_BY_CODE[hk.code] = hk
+
 
 def unregister(hk):
     keycode, mod = hk.code
     catch = CatchError()
     for m in IGNORED_MODIFIERS:
-        root.ungrab_key(keycode, mod|m, onerror=catch)
+        root.ungrab_key(keycode, mod | m, onerror=catch)
         if catch.get_error():
             raise catch.get_error()
     del HOTKEYS_BY_CODE[hk.code]
+
 
 def prepare():
     global root, display
     display = Display()
     root = display.screen().root
     catch = CatchError()
-    root.change_attributes(event_mask = X.KeyPressMask, onerror=catch)
+    root.change_attributes(event_mask=X.KeyPressMask, onerror=catch)
     if catch.get_error():
         raise catch.get_error()
+
 
 def loop():
     while not _LoopEvt.is_set():
@@ -72,12 +82,15 @@ def loop():
 
         hk._do_callback()
 
+
 def start():
     global _LoopEvt
     _LoopEvt = threading.Event()
 
+
 def stop():
     _LoopEvt.set()
+
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
@@ -86,7 +99,7 @@ def translate(s):
 
     key = parts[-1]
     if key.startswith('0x'):
-        keycode = int(key,0)
+        keycode = int(key, 0)
     else:
         keycode = KEY_CODES[key]
 

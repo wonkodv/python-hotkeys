@@ -39,8 +39,10 @@ __all__ = (
 
 _Lock = threading.Lock()
 
+
 class HotKeyError(Exception):
     pass
+
 
 class HotKey:
     """System wide HotKey.
@@ -56,6 +58,7 @@ class HotKey:
     only be used once)
     """
     HOTKEYS = weakref.WeakValueDictionary()
+
     def __init__(self, hotkey, callback, *args, **kwargs):
         """Create a hotkey, that will call a callback.
 
@@ -122,8 +125,9 @@ class HotKey:
 
     def __repr__(self):
         return "HotKey({0}, active={1}, callback={2})".format(
-                self.hotkey, self.active,
-                self._callback.__qualname__)
+            self.hotkey, self.active,
+            self._callback.__qualname__)
+
 
 class EventHotKey(HotKey):
     """ A hotkey that acts as a threading Event.
@@ -169,17 +173,20 @@ class EventHotKey(HotKey):
 
     def __repr__(self):
         return "EventHotKey({}, {})".format(
-                self.hotkey, "Set" if self.evt.is_set() else "NotSet")
+            self.hotkey, "Set" if self.evt.is_set() else "NotSet")
 
     def __del__(self):
-        self.evt.set() # Should not be needed, but otherwise deadlocks show up :-/
+        self.evt.set()  # Should not be needed, but otherwise deadlocks show up :-/
+
 
 def disable_all_hotkeys():
-    for hk in list(HotKey.HOTKEYS.values()): # size changes during iteration, list fixes the problem
+    for hk in list(HotKey.HOTKEYS.values()
+                   ):  # size changes during iteration, list fixes the problem
         try:
             hk.unregister()
         except HotKeyError:
             pass
+
 
 def enable_all_hotkeys():
     for hk in list(HotKey.HOTKEYS.values()):
@@ -188,10 +195,12 @@ def enable_all_hotkeys():
         except HotKeyError:
             pass
 
+
 def get_hotkey(hk):
     code = impl.translate(hk)
     hk = HotKey.HOTKEYS[code]
     return hk
+
 
 def reload_hotkeys():
     """For all commands that have a HotKey attribute, register a hotkey.
@@ -216,8 +225,8 @@ def reload_hotkeys():
                 pass
 
             if not hko:
-                def run_command(c,hk):
-                    c(hk,"")()
+                def run_command(c, hk):
+                    c(hk, "")()
                 run_command.__qualname__ = c.__qualname__
                 hko = HotKey(hk, run_command, c, hk)
                 c.attrs['_HotKey'] = weakref.ref(hko)
@@ -230,10 +239,12 @@ def reload_hotkeys():
 @command.COMMAND_EXCEPTION_HOOK.register
 def _command_exception(exception, command):
     if command.frontend == 'ht3.hotkey':
-        return True # Don't raise the exception
+        return True  # Don't raise the exception
+
 
 def start():
     impl.start()
+
 
 def loop():
     impl.prepare()
@@ -241,7 +252,6 @@ def loop():
     impl.loop()
     disable_all_hotkeys()
 
+
 def stop():
     impl.stop()
-
-
