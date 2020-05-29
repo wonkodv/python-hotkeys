@@ -41,24 +41,25 @@ def do_in_hk_thread(f):
                 threading.current_thread())
 
         t = threading.current_thread()
+
         if t == HK_WORKER_THREAD:
             return f(*args, **kwargs)
-        else:
-            e = threading.Event()
-            data = (e, f, args, kwargs)
-            po = py_object(data)
-            lp = LPARAM(addressof(po))
-            # hold on to lp in local variable so data stays valid
-            if not windll.user32.PostThreadMessageW(
-                    HK_WORKER_THREAD_ID, WM_NOTIFY, 0, lp):
-                raise WinError()
 
-            if not e.wait(timeout=5):
-                raise TypeError("Hotkey Worker not Responding", e)
+        e = threading.Event()
+        data = (e, f, args, kwargs)
+        po = py_object(data)
+        lp = LPARAM(addressof(po))
+        # hold on to lp in local variable so data stays valid
+        if not windll.user32.PostThreadMessageW(
+                HK_WORKER_THREAD_ID, WM_NOTIFY, 0, lp):
+            raise WinError()
 
-            if e._exception:
-                raise e._exception
-            return e._result
+        if not e.wait(timeout=5):
+            raise TypeError("Hotkey Worker not Responding", e)
+
+        if e._exception:
+            raise e._exception
+        return e._result
     return wrapper
 
 

@@ -137,5 +137,5 @@ def update_hotkey_devices():
     global DEVICES
     d = Env.get('HOTKEY_DEVICES', None)
     if d is None:
-        d = [p for p in pathlib.Path("/dev/input").glob("event*")]
+        d = list(pathlib.Path("/dev/input").glob("event*"))
     DEVICES = d
