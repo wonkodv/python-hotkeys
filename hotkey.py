@@ -17,14 +17,18 @@ from ht3.env import Env
 from ht3 import command
 from ht3 import lib
 
+impl = None
 if CHECK.os.win:
     from . import windows as impl
 elif CHECK.os.posix:
-    from . import xserver as impl
-    # TODO: if X not active:  from . import posix as impl
-else:
-    raise ImportError("No Hotkey Provider for your Plattform")
-
+    try:
+        from . import xserver as impl
+    except ImportError:
+        try:
+            # TODO: if X not active:  from . import posix as impl
+            from . import posix as impl
+        except ImportError:
+            pass
 
 __all__ = (
     'HotKey',
