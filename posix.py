@@ -15,40 +15,37 @@ from ht3.env import Env
 from ht3.utils.keycodes.posix import KEY_CODES, KEY_NAMES
 
 NAMED_MODIFIERS = {
-    'ALT': 1,
-    'LEFTALT': 1,
-    'RIGHTALT': 1,
-    'MENU': 1,
-
-    'CTRL': 2,
-    'CONTROL': 2,
-    'LEFTCTRL': 2,
-    'RIGHTCTRL': 2,
-
-    'SHIFT': 4,
-    'LEFTSHIFT': 4,
-    'RIGHTSHIFT': 4,
-
-    'MOD4': 8,
-    'WIN': 8,
-    'META': 8,
-    'LEFTMETA': 8,
-    'RIGHTMETA': 8,
+    "ALT": 1,
+    "LEFTALT": 1,
+    "RIGHTALT": 1,
+    "MENU": 1,
+    "CTRL": 2,
+    "CONTROL": 2,
+    "LEFTCTRL": 2,
+    "RIGHTCTRL": 2,
+    "SHIFT": 4,
+    "LEFTSHIFT": 4,
+    "RIGHTSHIFT": 4,
+    "MOD4": 8,
+    "WIN": 8,
+    "META": 8,
+    "LEFTMETA": 8,
+    "RIGHTMETA": 8,
 }
 
 VK_MODIFIERS = {
-    KEY_CODES['LEFTALT']: 1,
-    KEY_CODES['RIGHTALT']: 1,
-    KEY_CODES['LEFTCTRL']: 2,
-    KEY_CODES['RIGHTCTRL']: 2,
-    KEY_CODES['LEFTSHIFT']: 4,
-    KEY_CODES['RIGHTSHIFT']: 4,
-    KEY_CODES['LEFTMETA']: 8,
-    KEY_CODES['RIGHTMETA']: 8,
+    KEY_CODES["LEFTALT"]: 1,
+    KEY_CODES["RIGHTALT"]: 1,
+    KEY_CODES["LEFTCTRL"]: 2,
+    KEY_CODES["RIGHTCTRL"]: 2,
+    KEY_CODES["LEFTSHIFT"]: 4,
+    KEY_CODES["RIGHTSHIFT"]: 4,
+    KEY_CODES["LEFTMETA"]: 8,
+    KEY_CODES["RIGHTMETA"]: 8,
 }
 
 
-FORMAT = 'llHHI'
+FORMAT = "llHHI"
 EVENT_SIZE = struct.calcsize(FORMAT)
 
 
@@ -81,11 +78,11 @@ def loop():
                     cached_devices = DEVICES
                 except PermissionError:
                     raise PermissionError(
-                        "You need to be allowed to read /def/input/event*. Usually by being member of the `input` group")
+                        "You need to be allowed to read /def/input/event*. Usually by being member of the `input` group"
+                    )
             r, _, _ = select.select(files, [], [], 0.1)
             for f in r:
-                sec, usec, typ, code, value = struct.unpack(
-                    FORMAT, f.read(EVENT_SIZE))
+                sec, usec, typ, code, value = struct.unpack(FORMAT, f.read(EVENT_SIZE))
                 if typ != 1:
                     continue
                 m = VK_MODIFIERS.get(code, 0)
@@ -116,13 +113,13 @@ def stop():
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
-    parts = s.split('+')
+    parts = s.split("+")
     parts = [s.strip() for s in parts]
     try:
         vk = KEY_CODES[parts[-1]]
     except KeyError:
         vk = parts[-1]
-        if vk.startswith('0x'):
+        if vk.startswith("0x"):
             vk = int(vk, 0)
         else:
             raise
@@ -135,7 +132,7 @@ def translate(s):
 
 def update_hotkey_devices():
     global DEVICES
-    d = Env.get('HOTKEY_DEVICES', None)
+    d = Env.get("HOTKEY_DEVICES", None)
     if d is None:
         d = list(pathlib.Path("/dev/input").glob("event*"))
     DEVICES = d

@@ -31,13 +31,13 @@ elif CHECK.os.posix:
             pass
 
 __all__ = (
-    'HotKey',
-    'EventHotKey',
-    'HotKeyError',
-    'disable_all_hotkeys',
-    'enable_all_hotkeys',
-    'get_hotkey',
-    'reload_hotkeys',
+    "HotKey",
+    "EventHotKey",
+    "HotKeyError",
+    "disable_all_hotkeys",
+    "enable_all_hotkeys",
+    "get_hotkey",
+    "reload_hotkeys",
 )
 
 _Lock = threading.Lock()
@@ -60,6 +60,7 @@ class HotKey:
     Use inside a with block to takes care of calling register and free (can
     only be used once)
     """
+
     HOTKEYS = weakref.WeakValueDictionary()
 
     def __init__(self, hotkey, callback, *args, **kwargs):
@@ -128,12 +129,12 @@ class HotKey:
 
     def __repr__(self):
         return "HotKey({0}, active={1}, callback={2})".format(
-            self.hotkey, self.active,
-            self._callback.__qualname__)
+            self.hotkey, self.active, self._callback.__qualname__
+        )
 
 
 class EventHotKey(HotKey):
-    """ A hotkey that acts as a threading Event.
+    """A hotkey that acts as a threading Event.
 
     Wait until Hotkey is pressed, Clear and wait again.
 
@@ -176,15 +177,17 @@ class EventHotKey(HotKey):
 
     def __repr__(self):
         return "EventHotKey({}, {})".format(
-            self.hotkey, "Set" if self.evt.is_set() else "NotSet")
+            self.hotkey, "Set" if self.evt.is_set() else "NotSet"
+        )
 
     def __del__(self):
         self.evt.set()  # Should not be needed, but otherwise deadlocks show up :-/
 
 
 def disable_all_hotkeys():
-    for hk in list(HotKey.HOTKEYS.values()
-                   ):  # size changes during iteration, list fixes the problem
+    for hk in list(
+        HotKey.HOTKEYS.values()
+    ):  # size changes during iteration, list fixes the problem
         try:
             hk.unregister()
         except HotKeyError:
@@ -215,7 +218,7 @@ def reload_hotkeys():
     for c in command.COMMANDS.values():
         try:
             try:
-                hk = c.attrs['HotKey']
+                hk = c.attrs["HotKey"]
             except KeyError:
                 continue
 
@@ -228,11 +231,13 @@ def reload_hotkeys():
                 pass
 
             if not hko:
+
                 def run_command(c, hk):
                     c(hk, "")()
+
                 run_command.__qualname__ = c.__qualname__
                 hko = HotKey(hk, run_command, c, hk)
-                c.attrs['_HotKey'] = weakref.ref(hko)
+                c.attrs["_HotKey"] = weakref.ref(hko)
 
             hko.register()
         except Exception as e:
@@ -241,7 +246,7 @@ def reload_hotkeys():
 
 @command.COMMAND_EXCEPTION_HOOK.register
 def _command_exception(exception, command):
-    if command.frontend == 'ht3.hotkey':
+    if command.frontend == "ht3.hotkey":
         return True  # Don't raise the exception
 
 

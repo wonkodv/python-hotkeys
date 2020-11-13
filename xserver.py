@@ -12,10 +12,10 @@ from Xlib.error import CatchError
 
 
 MODIFIERS = {
-    'ALT': X.Mod1Mask,
-    'CTRL': X.ControlMask,
-    'SHIFT': X.ShiftMask,
-    'MOD4': X.Mod4Mask,
+    "ALT": X.Mod1Mask,
+    "CTRL": X.ControlMask,
+    "SHIFT": X.ShiftMask,
+    "MOD4": X.Mod4Mask,
 }
 
 IGNORED_MODIFIERS = (
@@ -37,12 +37,8 @@ def register(hk):
     catch = CatchError()
     for m in IGNORED_MODIFIERS:
         root.grab_key(
-            keycode,
-            mod | m,
-            False,
-            X.GrabModeSync,
-            X.GrabModeAsync,
-            onerror=catch)
+            keycode, mod | m, False, X.GrabModeSync, X.GrabModeAsync, onerror=catch
+        )
         if catch.get_error():
             raise catch.get_error()
     HOTKEYS_BY_CODE[hk.code] = hk
@@ -94,11 +90,11 @@ def stop():
 
 def translate(s):
     """Translate a String like ``Ctrl + A`` into the virtual Key Code and modifiers."""
-    parts = s.split('+')
+    parts = s.split("+")
     parts = [s.strip() for s in parts]
 
     key = parts[-1]
-    if key.startswith('0x'):
+    if key.startswith("0x"):
         keycode = int(key, 0)
     else:
         keycode = KEY_CODES[key]
