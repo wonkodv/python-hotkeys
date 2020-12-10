@@ -4,11 +4,16 @@ uses python-xlib
 """
 
 import threading
-from ht3.utils.keycodes.xserver import KEY_CODES
-from Xlib.display import Display
+import weakref
+
+from hotkey.keycodes.xserver import KEY_CODES
 from Xlib import X
-from Xlib import XK
+from Xlib.display import Display
 from Xlib.error import CatchError
+
+
+class Error(Exception):
+    pass
 
 
 MODIFIERS = {
@@ -29,15 +34,23 @@ IGNORED_MODIFIERS = (
     0 | 0 | X.Mod5Mask,
 )
 
-HOTKEYS_BY_CODE = {}
+HOTKEYS_BY_CODE = weakref.WeakValueDictionary()
 
 
 def register(hk):
+    if hk.code in HOTKEYS_BY_CODE:
+        raise Error("Duplicate Hotkey", hk, HOTKEYS_BY_CODE[hk.code])
+
     keycode, mod = hk.code
     catch = CatchError()
     for m in IGNORED_MODIFIERS:
         root.grab_key(
-            keycode, mod | m, False, X.GrabModeSync, X.GrabModeAsync, onerror=catch
+            keycode,
+            mod | m,
+            False,
+            X.GrabModeSync,
+            X.GrabModeAsync,
+            onerror=catch,
         )
         if catch.get_error():
             raise catch.get_error()
@@ -55,7 +68,11 @@ def unregister(hk):
 
 
 def prepare():
-    global root, display
+    global root
+    global display
+    global _LoopEvt
+
+    _LoopEvt = threading.Event()
     display = Display()
     root = display.screen().root
     catch = CatchError()
@@ -77,11 +94,8 @@ def loop():
         hk = HOTKEYS_BY_CODE[code]
 
         hk._do_callback()
-
-
-def start():
-    global _LoopEvt
-    _LoopEvt = threading.Event()
+    for hk in list(HOTKEYS_BY_CODE.values()):
+        hk.free()
 
 
 def stop():

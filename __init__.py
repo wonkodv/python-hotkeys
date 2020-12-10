@@ -1,5 +1,4 @@
-from .hotkey import *
 from . import hotkey
-from .hotkey import start, loop, stop
+from .hotkey import *
 
 __all__ = hotkey.__all__

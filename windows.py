@@ -1,15 +1,18 @@
 """Hotkeys on the Windows Plattform."""
 
-import queue
 import time
 import threading
+import weakref
+import functools
 
 
 from ctypes import windll, byref, WinError, py_object, addressof
 from ctypes.wintypes import MSG, LPARAM
 
-from ht3.utils.keycodes.win32 import KEY_CODES
+from hotkey.keycodes.win32 import KEY_CODES
 
+class Error(Exception):
+    pass
 
 WM_HOTKEY = 0x312
 WM_USER = 0x0400
@@ -27,20 +30,20 @@ MODIFIERS = {
 }
 
 _next_id = 0
-HOTKEYS_BY_ID = {}
+HOTKEYS_BY_ID = weakref.WeakValueDictionary()
 
 HK_WORKER_THREAD = None
 HK_WORKER_THREAD_ID = None
 
 
 def do_in_hk_thread(f):
+    @functools.wraps(f)
     def wrapper(*args, **kwargs):
         if HK_WORKER_THREAD is None:
-            raise Exception("No Hotkey Worker Thread", threading.current_thread())
+            raise Error("No Hotkey Worker Thread", threading.current_thread())
 
-        t = threading.current_thread()
-
-        if t == HK_WORKER_THREAD:
+        if threading.current_thread() == HK_WORKER_THREAD:
+            # called from worker thread (maybe from hotkey callback)
             return f(*args, **kwargs)
 
         e = threading.Event()
@@ -49,10 +52,10 @@ def do_in_hk_thread(f):
         lp = LPARAM(addressof(po))
         # hold on to lp in local variable so data stays valid
         if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_NOTIFY, 0, lp):
-            raise WinError()
+            raise Exception(HK_WORKER_THREAD_ID, lp, data) from WinError()
 
-        if not e.wait(timeout=5):
-            raise TypeError("Hotkey Worker not Responding", e)
+        if not e.wait(timeout=0.5):
+            raise Error("Hotkey Worker not Responding", e)   # are you doing too much in callbacks?
 
         if e._exception:
             raise e._exception
@@ -64,9 +67,8 @@ def do_in_hk_thread(f):
 @do_in_hk_thread
 def register(hk):
     global _next_id
-
-    _next_id = _next_id + 1
     hk._win_hk_id = _next_id
+    _next_id += 1
 
     mod, vk = hk.code
 
@@ -82,19 +84,24 @@ def unregister(hk):
         raise WinError()
     del HOTKEYS_BY_ID[hk._win_hk_id]
 
-
 def prepare():
     global HK_WORKER_THREAD, HK_WORKER_THREAD_ID
     HK_WORKER_THREAD = threading.current_thread()
     HK_WORKER_THREAD_ID = windll.kernel32.GetCurrentThreadId()
+    
+    # call PeekMessage to create a message Q, otherwise @do_in_hk_thread functions called between
+    # prepare and GetMessage would fail
+    msg = MSG()
+    lpmsg = byref(msg)
+    windll.user32.PeekMessageW(lpmsg, 0, 0, 0, 0)
 
 
 def loop():
+    global HK_WORKER_THREAD, HK_WORKER_THREAD_ID
+    assert threading.current_thread() is HK_WORKER_THREAD
     try:
         msg = MSG()
         lpmsg = byref(msg)
-
-        t = threading.current_thread()
         while windll.user32.GetMessageW(lpmsg, 0, 0, 0):
             if msg.message == WM_HOTKEY:
                 hk = HOTKEYS_BY_ID[msg.wParam]
@@ -112,18 +119,16 @@ def loop():
                     e._exception = ex
                 e.set()
             else:
-                raise AssertionError(msg)
+                assert False, msg
 
     finally:
         HK_WORKER_THREAD = None
         HK_WORKER_THREAD_ID = None
 
 
-def start():
-    pass
-
-
 def stop():
+    for hk in list(HOTKEYS_BY_ID.values()):
+        hk.free()
     assert HK_WORKER_THREAD
     if not windll.user32.PostThreadMessageW(HK_WORKER_THREAD_ID, WM_STOP, 0, 0):
         raise WinError()

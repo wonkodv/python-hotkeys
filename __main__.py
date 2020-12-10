@@ -1,6 +1,19 @@
 from . import hotkey
+import logging
+
+logging.getLogger().setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+
 
 hotkey.start()
-hk = hotkey.HotKey("F7", print, "Hans")
-hk = hotkey.HotKey("F8", hotkey.stop)
-hotkey.loop()
+with hotkey.EventHotKey("F6") as hk:
+    for t in hk:
+        print(t)
+        if t < 0.2:
+            hotkey.stop()
+            break
+
+
+hk1 = hotkey.HotKey("F6", lambda: print("Hans"))
+hk2 = hotkey.HotKey("F7", hotkey.stop)
+hotkey.run()
