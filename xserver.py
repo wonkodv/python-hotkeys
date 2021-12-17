@@ -6,10 +6,11 @@ uses python-xlib
 import threading
 import weakref
 
-from hotkey.keycodes.xserver import KEY_CODES
 from Xlib import X
 from Xlib.display import Display
 from Xlib.error import CatchError
+
+from hotkey.keycodes.xserver import KEY_CODES
 
 
 class Error(Exception):

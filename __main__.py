@@ -1,5 +1,6 @@
-from . import hotkey
 import logging
+
+from . import hotkey
 
 logging.getLogger().setLevel(logging.DEBUG)
 logging.basicConfig(level=logging.DEBUG)

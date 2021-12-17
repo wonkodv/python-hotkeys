@@ -1,18 +1,18 @@
 """Hotkeys on the Windows Plattform."""
 
-import time
-import threading
-import weakref
 import functools
-
-
-from ctypes import windll, byref, WinError, py_object, addressof
-from ctypes.wintypes import MSG, LPARAM
+import threading
+import time
+import weakref
+from ctypes import WinError, addressof, byref, py_object, windll
+from ctypes.wintypes import LPARAM, MSG
 
 from hotkey.keycodes.win32 import KEY_CODES
 
+
 class Error(Exception):
     pass
+
 
 WM_HOTKEY = 0x312
 WM_USER = 0x0400
@@ -55,7 +55,9 @@ def do_in_hk_thread(f):
             raise Exception(HK_WORKER_THREAD_ID, lp, data) from WinError()
 
         if not e.wait(timeout=0.5):
-            raise Error("Hotkey Worker not Responding", e)   # are you doing too much in callbacks?
+            raise Error(
+                "Hotkey Worker not Responding", e
+            )  # are you doing too much in callbacks?
 
         if e._exception:
             raise e._exception
@@ -84,11 +86,12 @@ def unregister(hk):
         raise WinError()
     del HOTKEYS_BY_ID[hk._win_hk_id]
 
+
 def prepare():
     global HK_WORKER_THREAD, HK_WORKER_THREAD_ID
     HK_WORKER_THREAD = threading.current_thread()
     HK_WORKER_THREAD_ID = windll.kernel32.GetCurrentThreadId()
-    
+
     # call PeekMessage to create a message Q, otherwise @do_in_hk_thread functions called between
     # prepare and GetMessage would fail
     msg = MSG()
