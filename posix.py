@@ -107,7 +107,6 @@ def start():
 
 
 def stop():
-
     _LoopEvt.set()
 
 
